@@ -19,11 +19,20 @@ interface ConversationMessage {
   content: string
 }
 
+interface MentionedProduct {
+  sku: string
+  name: string
+  price: number
+  aisle: string
+  bin: string | null
+  stock: number
+}
+
 export async function askAssistant(
   question: string,
   products: Product[],
   conversationHistory: ConversationMessage[] = []
-): Promise<{ response: string; suggestedQuestions: string[] }> {
+): Promise<{ response: string; suggestedQuestions: string[]; mentionedProducts: MentionedProduct[] }> {
   const model = genAI.getGenerativeModel({ model: 'gemma-3-27b-it' })
 
   // Build product catalog with categories
@@ -42,37 +51,72 @@ export async function askAssistant(
     ? `\nPREVIOUS CONVERSATION:\n${recentHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}\n`
     : ''
 
-  const prompt = `You are KatzAI, a friendly and knowledgeable hardware store assistant. You help customers find the right products for their projects.
+  const prompt = `You are a friendly, warm hardware store employee named Katz. You genuinely enjoy helping people with their projects and making their lives easier. Speak naturally like a helpful colleague would - use casual, conversational language.
 
 STORE INVENTORY (${products.length} products in ${categories.length} categories):
 ${productList}
 
 ${historyContext}
-CUSTOMER'S CURRENT QUESTION: "${question}"
+CUSTOMER'S QUESTION: "${question}"
 
-INSTRUCTIONS:
-1. Recommend products ONLY from the inventory above
-2. Always include the exact location (Aisle and Bin) so they can find it
-3. Explain WHY each product is good for their specific need
-4. If multiple options exist, compare them (price, quality, features)
-5. If nothing matches, say so honestly and suggest what they might need
-6. Be conversational, friendly, and concise
-7. For follow-up questions, reference the previous conversation
-8. If the question is unclear, ask a clarifying question
+YOUR PERSONALITY:
+- Warm and genuinely helpful, like talking to a knowledgeable friend
+- Use natural phrases like "Oh perfect!", "Great choice!", "Here's what I'd grab...", "You'll want to..."
+- Share quick tips or pro advice when relevant
+- Be enthusiastic but not over-the-top
+- Keep responses concise - customers are busy!
 
-At the END of your response, on a new line, add exactly 3 suggested follow-up questions the customer might ask, formatted as:
-SUGGESTED: question1 | question2 | question3`
+RULES:
+1. ONLY recommend products from the inventory above
+2. Always mention exact location (Aisle + Bin) so they can find it fast
+3. Briefly explain why each product works for their need
+4. If suggesting multiple options, keep comparisons short and helpful
+5. If nothing matches, be honest and suggest what type of product they need
+6. For follow-ups, reference the previous chat naturally
+
+FORMAT YOUR RESPONSE:
+- Write your helpful response naturally
+- At the very end, add a line starting with "PRODUCTS:" followed by the SKUs you mentioned, separated by commas (e.g., PRODUCTS: HT-HAMMER-16, PT-DRILL-20V)
+- Then add "SUGGESTED:" followed by 3 follow-up questions separated by | 
+
+Example ending:
+PRODUCTS: HT-HAMMER-16, FA-NAIL-16D-1LB
+SUGGESTED: What size nails work best? | Do I need a stud finder? | Got any safety glasses?`
 
   try {
     const result = await model.generateContent(prompt)
     const fullResponse = result.response.text()
     
-    // Parse suggested questions
+    // Parse response
     const lines = fullResponse.split('\n')
+    const productsLine = lines.find(l => l.startsWith('PRODUCTS:'))
     const suggestedLine = lines.find(l => l.startsWith('SUGGESTED:'))
-    let suggestedQuestions: string[] = []
-    let response = fullResponse
     
+    // Extract mentioned product SKUs
+    let mentionedSkus: string[] = []
+    if (productsLine) {
+      mentionedSkus = productsLine
+        .replace('PRODUCTS:', '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0)
+    }
+    
+    // Match SKUs to full product info
+    const mentionedProducts: MentionedProduct[] = mentionedSkus
+      .map(sku => products.find(p => p.sku === sku))
+      .filter((p): p is Product => p !== undefined)
+      .map(p => ({
+        sku: p.sku,
+        name: p.name,
+        price: p.price,
+        aisle: p.aisle,
+        bin: p.bin,
+        stock: p.stock
+      }))
+    
+    // Parse suggested questions
+    let suggestedQuestions: string[] = []
     if (suggestedLine) {
       suggestedQuestions = suggestedLine
         .replace('SUGGESTED:', '')
@@ -80,25 +124,31 @@ SUGGESTED: question1 | question2 | question3`
         .map(q => q.trim())
         .filter(q => q.length > 0)
         .slice(0, 3)
-      response = lines.filter(l => !l.startsWith('SUGGESTED:')).join('\n').trim()
     }
+    
+    // Clean response (remove the metadata lines)
+    let response = lines
+      .filter(l => !l.startsWith('PRODUCTS:') && !l.startsWith('SUGGESTED:'))
+      .join('\n')
+      .trim()
     
     // Default suggestions if none provided
     if (suggestedQuestions.length === 0) {
       suggestedQuestions = [
-        'What tools do I need for this?',
-        'Do you have anything cheaper?',
-        'Where can I find this?'
+        'What else would I need?',
+        'Got anything cheaper?',
+        'Any pro tips?'
       ]
     }
     
-    return { response, suggestedQuestions }
+    return { response, suggestedQuestions, mentionedProducts }
   } catch (error: unknown) {
     const err = error as Error
     console.error('AI error:', err.message)
     return {
-      response: "I'm having trouble connecting right now. Please try again in a moment.",
-      suggestedQuestions: ['What products do you have?', 'I need help with a project', 'Show me your best sellers']
+      response: "Hmm, I'm having a little trouble right now. Give me a sec and try again?",
+      suggestedQuestions: ['What products do you have?', 'I need help with a project', 'Show me your best sellers'],
+      mentionedProducts: []
     }
   }
 }

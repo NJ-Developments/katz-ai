@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Mic, MicOff, Send, Loader2, Volume2, VolumeX, MessageCircle, Sparkles } from 'lucide-react'
+import { Mic, MicOff, Send, Loader2, Volume2, VolumeX, MessageCircle, Sparkles, MapPin, Package, X } from 'lucide-react'
 import Navbar from '../components/Navbar'
 
 interface Message {
@@ -15,6 +15,15 @@ interface User {
   email: string
   name: string
   role: string
+}
+
+interface MentionedProduct {
+  sku: string
+  name: string
+  price: number
+  aisle: string
+  bin: string | null
+  stock: number
 }
 
 const INITIAL_SUGGESTIONS = [
@@ -35,6 +44,8 @@ export default function AssistantPage() {
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>(INITIAL_SUGGESTIONS)
   const [user, setUser] = useState<User | null>(null)
   const [pageLoading, setPageLoading] = useState(true)
+  const [mentionedProducts, setMentionedProducts] = useState<MentionedProduct[]>([])
+  const [showProductPanel, setShowProductPanel] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
@@ -236,6 +247,13 @@ export default function AssistantPage() {
       const data = await res.json()
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
       setSuggestedQuestions(data.suggestedQuestions || [])
+      
+      // Update mentioned products and show panel if there are any
+      if (data.mentionedProducts && data.mentionedProducts.length > 0) {
+        setMentionedProducts(data.mentionedProducts)
+        setShowProductPanel(true)
+      }
+      
       speakResponse(data.response)
     } catch {
       const errorMsg = "Sorry, I'm having trouble connecting. Please try again."
@@ -285,17 +303,30 @@ export default function AssistantPage() {
           </div>
           <p className="text-sm text-gray-600">Voice-powered product recommendations</p>
         </div>
-        <button
-          onClick={() => {
-            if (speaking) speechSynthesis.cancel()
-            setSoundEnabled(!soundEnabled)
-          }}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition ${soundEnabled ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:bg-gray-100'}`}
-          title={soundEnabled ? 'Voice on' : 'Voice off'}
-        >
-          {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-          <span className="hidden sm:inline">{soundEnabled ? 'Voice On' : 'Voice Off'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Product Panel Toggle */}
+          {mentionedProducts.length > 0 && (
+            <button
+              onClick={() => setShowProductPanel(!showProductPanel)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition ${showProductPanel ? 'text-blue-600 bg-blue-100' : 'text-gray-600 bg-gray-100 hover:bg-blue-50'}`}
+            >
+              <Package size={18} />
+              <span className="hidden sm:inline">{mentionedProducts.length} Items</span>
+              <span className="sm:hidden">{mentionedProducts.length}</span>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (speaking) speechSynthesis.cancel()
+              setSoundEnabled(!soundEnabled)
+            }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition ${soundEnabled ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:bg-gray-100'}`}
+            title={soundEnabled ? 'Voice on' : 'Voice off'}
+          >
+            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            <span className="hidden sm:inline">{soundEnabled ? 'Voice On' : 'Voice Off'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Status Banner */}
@@ -321,15 +352,17 @@ export default function AssistantPage() {
         </div>
       )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4">
-          {/* Welcome State */}
-          {messages.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <Sparkles className="text-white" size={36} />
-              </div>
+      {/* Main Content Area with Chat and Product Panel */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4">
+            {/* Welcome State */}
+            {messages.length === 0 && (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Sparkles className="text-white" size={36} />
+                </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">How can I help you today?</h2>
               <p className="text-gray-500 mb-8">
                 Ask me about products, projects, or tap the mic to speak
@@ -406,6 +439,80 @@ export default function AssistantPage() {
           <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* Product Panel - Slide in from right */}
+      {showProductPanel && mentionedProducts.length > 0 && (
+        <div className="w-80 bg-white border-l border-gray-200 flex-shrink-0 overflow-y-auto hidden lg:block">
+          <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-purple-50 sticky top-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="text-blue-600" size={20} />
+                <h3 className="font-semibold text-gray-900">Recommended Items</h3>
+              </div>
+              <button 
+                onClick={() => setShowProductPanel(false)}
+                className="p-1 hover:bg-white rounded-lg transition"
+              >
+                <X size={18} className="text-gray-400" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{mentionedProducts.length} product{mentionedProducts.length !== 1 ? 's' : ''} mentioned</p>
+          </div>
+          <div className="p-3 space-y-3">
+            {mentionedProducts.map((product, i) => (
+              <div key={product.sku} className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-blue-200 hover:shadow-sm transition">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-medium text-gray-900 text-sm leading-tight">{product.name}</h4>
+                  <span className="text-blue-600 font-bold text-sm whitespace-nowrap">${product.price}</span>
+                </div>
+                <div className="mt-3 flex items-center gap-4">
+                  <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg">
+                    <MapPin size={14} />
+                    <span className="text-xs font-semibold">
+                      Aisle {product.aisle}{product.bin ? ` • Bin ${product.bin}` : ''}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500">{product.stock} in stock</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-2 font-mono">{product.sku}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+
+      {/* Mobile Product Panel - Bottom sheet */}
+      {showProductPanel && mentionedProducts.length > 0 && (
+        <div className="lg:hidden fixed bottom-20 left-0 right-0 bg-white border-t shadow-lg rounded-t-2xl max-h-64 overflow-y-auto z-40">
+          <div className="p-3 border-b bg-gradient-to-r from-blue-50 to-purple-50 sticky top-0 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Package className="text-blue-600" size={18} />
+              <span className="font-semibold text-sm text-gray-900">{mentionedProducts.length} Item{mentionedProducts.length !== 1 ? 's' : ''}</span>
+            </div>
+            <button 
+              onClick={() => setShowProductPanel(false)}
+              className="p-1 hover:bg-white rounded-lg transition"
+            >
+              <X size={18} className="text-gray-400" />
+            </button>
+          </div>
+          <div className="p-3 flex gap-3 overflow-x-auto">
+            {mentionedProducts.map((product) => (
+              <div key={product.sku} className="bg-gray-50 rounded-xl p-3 border border-gray-100 min-w-[200px] flex-shrink-0">
+                <h4 className="font-medium text-gray-900 text-sm line-clamp-2">{product.name}</h4>
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg">
+                    <MapPin size={12} />
+                    <span className="text-xs font-semibold">{product.aisle}{product.bin ? `-${product.bin}` : ''}</span>
+                  </div>
+                  <span className="text-blue-600 font-bold text-sm">${product.price}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Input Area */}
       <div className="bg-white border-t p-4">

@@ -44,13 +44,13 @@ export async function POST(request: NextRequest) {
     })
 
     // Get AI response with conversation context
-    const { response, suggestedQuestions } = await askAssistant(
+    const { response, suggestedQuestions, mentionedProducts } = await askAssistant(
       question,
       products.map((p) => ({ ...p, price: Number(p.price) })),
       conversationHistory
     )
 
-    return NextResponse.json({ response, suggestedQuestions })
+    return NextResponse.json({ response, suggestedQuestions, mentionedProducts })
   } catch (error) {
     console.error('Assistant error:', error)
     return NextResponse.json(
