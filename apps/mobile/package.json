@@ -1,0 +1,35 @@
+{
+  "name": "@katzai/mobile",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.0",
+    "@katzai/shared": "workspace:*",
+    "expo": "~50.0.0",
+    "expo-av": "~14.0.0",
+    "expo-constants": "~15.4.0",
+    "expo-file-system": "~16.0.0",
+    "expo-haptics": "~13.0.0",
+    "expo-router": "~3.4.0",
+    "expo-secure-store": "~13.0.0",
+    "expo-sharing": "~12.0.0",
+    "expo-speech": "~12.0.0",
+    "expo-status-bar": "~1.11.0",
+    "react": "18.2.0",
+    "react-native": "0.73.2",
+    "react-native-safe-area-context": "4.8.2",
+    "react-native-screens": "~3.29.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@types/react": "~18.2.45",
+    "typescript": "^5.3.0"
+  },
+  "private": true
+}

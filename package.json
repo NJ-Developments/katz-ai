@@ -1,0 +1,30 @@
+{
+  "name": "katzai",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "dev:api": "cd apps/api && pnpm dev",
+    "dev:admin": "cd apps/admin && pnpm dev",
+    "dev:mobile": "cd apps/mobile && pnpm start",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:truth": "cd apps/api && pnpm test",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down",
+    "db:migrate": "cd apps/api && pnpm prisma migrate dev",
+    "db:seed": "cd apps/api && pnpm prisma db seed",
+    "db:studio": "cd apps/api && pnpm prisma studio",
+    "db:reset": "cd apps/api && pnpm prisma migrate reset",
+    "setup": "pnpm install && pnpm db:up && timeout /t 5 && pnpm db:migrate && pnpm db:seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
