@@ -14,12 +14,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    const products = await prisma.product.findMany({
-      where: { storeId: payload.storeId },
-      orderBy: { name: 'asc' },
-    })
+    const [products, user] = await Promise.all([
+      prisma.product.findMany({
+        where: { storeId: payload.storeId },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, email: true, name: true, role: true }
+      })
+    ])
 
-    return NextResponse.json({ products })
+    return NextResponse.json({ 
+      products: products.map(p => ({ ...p, price: Number(p.price) })),
+      user 
+    })
   } catch (error) {
     console.error('Inventory error:', error)
     return NextResponse.json(

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    const { question } = await request.json()
+    const { question, conversationHistory = [] } = await request.json()
     if (!question) {
       return NextResponse.json(
         { error: 'Question is required' },
@@ -39,16 +39,18 @@ export async function POST(request: NextRequest) {
         aisle: true,
         bin: true,
         attributes: true,
+        category: true,
       },
     })
 
-    // Get AI response
-    const response = await askAssistant(
+    // Get AI response with conversation context
+    const { response, suggestedQuestions } = await askAssistant(
       question,
-      products.map((p) => ({ ...p, price: Number(p.price) }))
+      products.map((p) => ({ ...p, price: Number(p.price) })),
+      conversationHistory
     )
 
-    return NextResponse.json({ response })
+    return NextResponse.json({ response, suggestedQuestions })
   } catch (error) {
     console.error('Assistant error:', error)
     return NextResponse.json(
