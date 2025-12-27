@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -14,7 +14,6 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
 import clsx from 'clsx';
 
 const navigation = [
@@ -34,10 +33,17 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/');
+    if (!isLoading) {
+      if (!user) {
+        router.push('/');
+      } else if (user.role === 'EMPLOYEE') {
+        // Employees cannot access the dashboard - redirect to employee home
+        setAccessDenied(true);
+        router.push('/employee');
+      }
     }
   }, [isLoading, user, router]);
 
@@ -49,8 +55,13 @@ export default function DashboardLayout({
     );
   }
 
-  if (!user) {
-    return null;
+  // Don't render dashboard for employees or unauthenticated users
+  if (!user || user.role === 'EMPLOYEE' || accessDenied) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
   }
 
   return (

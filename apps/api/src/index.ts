@@ -16,6 +16,7 @@ import { inventoryRoutes } from './modules/inventory/inventory.routes';
 import { assistantRoutes } from './modules/assistant/assistant.routes';
 import { cartRoutes } from './modules/carts/carts.routes';
 import { analyticsRoutes } from './modules/analytics/analytics.routes';
+import { employeeRoutes } from './modules/employee/employee.routes';
 
 const server = Fastify({
   logger: {
@@ -66,6 +67,7 @@ async function start() {
     await server.register(assistantRoutes, { prefix: '/assistant' });
     await server.register(cartRoutes, { prefix: '/carts' });
     await server.register(analyticsRoutes, { prefix: '/analytics' });
+    await server.register(employeeRoutes, { prefix: '/employee' });
 
     // Health check
     server.get('/health', async () => {

@@ -3,8 +3,8 @@
 // Creates demo store, users, and inventory
 // ===========================================
 
-import { PrismaClient, UserRole } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -19,13 +19,13 @@ async function main() {
       name: 'Demo Hardware Store',
       slug: 'demo-hardware-store',
       address: '123 Main Street, Anytown, USA 12345',
-      policies: {
+      policies: JSON.stringify({
         preferNoDamage: false,
         preferNoTools: false,
         suggestDrillingFirst: false,
         safetyDisclaimers: true,
         customInstructions: 'Always greet customers warmly and offer to walk them to the product location.',
-      },
+      }),
     },
   });
   console.log(`✅ Created store: ${store.name}`);
@@ -40,7 +40,7 @@ async function main() {
       email: 'manager@demo-store.com',
       passwordHash,
       name: 'Store Manager',
-      role: UserRole.MANAGER,
+      role: 'MANAGER',
       storeId: store.id,
     },
   });
@@ -53,7 +53,7 @@ async function main() {
       email: 'employee@demo-store.com',
       passwordHash,
       name: 'Store Employee',
-      role: UserRole.EMPLOYEE,
+      role: 'EMPLOYEE',
       storeId: store.id,
     },
   });
@@ -433,9 +433,15 @@ async function main() {
           storeId: store.id,
         },
       },
-      update: item,
+      update: {
+        ...item,
+        tags: JSON.stringify(item.tags),
+        attributes: JSON.stringify(item.attributes),
+      },
       create: {
         ...item,
+        tags: JSON.stringify(item.tags),
+        attributes: JSON.stringify(item.attributes),
         storeId: store.id,
       },
     });

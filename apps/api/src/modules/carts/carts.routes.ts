@@ -213,4 +213,156 @@ export async function cartRoutes(fastify: FastifyInstance) {
       };
     });
   });
+
+  /**
+   * GET /carts/current
+   * Get or create the current active cart for the user
+   */
+  fastify.get('/current', { preHandler: requireAuth }, async (request) => {
+    const { userId, storeId } = request.user;
+
+    // Find the most recent cart or create a new one
+    let cart = await fastify.prisma.cart.findFirst({
+      where: { userId, storeId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!cart) {
+      cart = await fastify.prisma.cart.create({
+        data: {
+          storeId,
+          userId,
+          items: JSON.stringify([]),
+        },
+      });
+    }
+
+    const items = (typeof cart.items === 'string' ? JSON.parse(cart.items) : cart.items) as any[];
+    return {
+      id: cart.id,
+      items,
+      total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+      createdAt: cart.createdAt.toISOString(),
+    };
+  });
+
+  /**
+   * POST /carts/add
+   * Add an item to the current cart
+   */
+  fastify.post('/add', { preHandler: requireAuth }, async (request) => {
+    const { userId, storeId } = request.user;
+    const { sku, quantity = 1 } = request.body as { sku: string; quantity?: number };
+
+    // Get or create current cart
+    let cart = await fastify.prisma.cart.findFirst({
+      where: { userId, storeId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!cart) {
+      cart = await fastify.prisma.cart.create({
+        data: {
+          storeId,
+          userId,
+          items: JSON.stringify([]),
+        },
+      });
+    }
+
+    // Get product details
+    const product = await fastify.prisma.inventoryItem.findUnique({
+      where: {
+        sku_storeId: { sku, storeId },
+      },
+    });
+
+    const items = (typeof cart.items === 'string' ? JSON.parse(cart.items) : cart.items) as any[];
+    const existingIdx = items.findIndex((i: any) => i.sku === sku);
+
+    if (existingIdx >= 0) {
+      items[existingIdx].quantity += quantity;
+    } else {
+      items.push({
+        sku,
+        name: product?.name || 'Unknown Product',
+        price: product ? parseFloat(product.price.toString()) : 0,
+        quantity,
+        location: product
+          ? `Aisle ${product.aisle}${product.bin ? `, Bin ${product.bin}` : ''}`
+          : 'Unknown',
+      });
+    }
+
+    const updatedCart = await fastify.prisma.cart.update({
+      where: { id: cart.id },
+      data: { items },
+    });
+
+    return {
+      id: updatedCart.id,
+      items,
+      total: items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0),
+    };
+  });
+
+  /**
+   * DELETE /carts/remove/:sku
+   * Remove an item from the current cart
+   */
+  fastify.delete('/remove/:sku', { preHandler: requireAuth }, async (request, reply) => {
+    const { userId, storeId } = request.user;
+    const { sku } = request.params as { sku: string };
+
+    const cart = await fastify.prisma.cart.findFirst({
+      where: { userId, storeId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!cart) {
+      return reply.status(404).send({ message: 'No cart found' });
+    }
+
+    const items = (typeof cart.items === 'string' ? JSON.parse(cart.items) : cart.items) as any[];
+    const updatedItems = items.filter((i: any) => i.sku !== sku);
+
+    const updatedCart = await fastify.prisma.cart.update({
+      where: { id: cart.id },
+      data: { items: updatedItems },
+    });
+
+    return {
+      id: updatedCart.id,
+      items: updatedItems,
+      total: updatedItems.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0),
+    };
+  });
+
+  /**
+   * DELETE /carts/clear
+   * Clear all items from the current cart
+   */
+  fastify.delete('/clear', { preHandler: requireAuth }, async (request, reply) => {
+    const { userId, storeId } = request.user;
+
+    const cart = await fastify.prisma.cart.findFirst({
+      where: { userId, storeId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!cart) {
+      return reply.status(404).send({ message: 'No cart found' });
+    }
+
+    const updatedCart = await fastify.prisma.cart.update({
+      where: { id: cart.id },
+      data: { items: JSON.stringify([]) },
+    });
+
+    return {
+      id: updatedCart.id,
+      items: [],
+      total: 0,
+    };
+  });
 }

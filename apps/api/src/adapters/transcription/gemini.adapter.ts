@@ -12,7 +12,7 @@ export class GeminiTranscriptionAdapter implements TranscriptionAdapter {
   private model: string;
 
   constructor() {
-    this.apiKey = config.GEMINI_API_KEY;
+    this.apiKey = config.GEMINI_API_KEY || '';
     this.model = 'gemini-1.5-flash';
   }
 
@@ -62,7 +62,7 @@ export class GeminiTranscriptionAdapter implements TranscriptionAdapter {
         throw new Error(`Gemini API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       const duration = Date.now() - startTime;
 
       // Extract transcription text

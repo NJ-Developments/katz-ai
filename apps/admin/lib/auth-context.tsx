@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -49,11 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string): Promise<User> {
     const response = await apiLogin(email, password);
     localStorage.setItem('katzai_token', response.token);
     setToken(response.token);
     setUser(response.user);
+    return response.user;
   }
 
   function logout() {

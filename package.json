@@ -21,6 +21,7 @@
     "setup": "pnpm install && pnpm db:up && timeout /t 5 && pnpm db:migrate && pnpm db:seed"
   },
   "devDependencies": {
+    "tsx": "^4.21.0",
     "typescript": "^5.3.3"
   },
   "engines": {

@@ -19,8 +19,13 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      router.push('/dashboard');
+      const user = await login(email, password);
+      // Role-based routing: Employees go to employee home, Managers/Admins go to dashboard
+      if (user.role === 'EMPLOYEE') {
+        router.push('/employee');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally {

@@ -66,9 +66,15 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 
     const skuCounts: Record<string, number> = {};
     logs.forEach((log) => {
-      log.recommendedSkus.forEach((sku) => {
-        skuCounts[sku] = (skuCounts[sku] || 0) + 1;
-      });
+      // recommendedSkus is stored as JSON string in SQLite
+      const skus = typeof log.recommendedSkus === 'string' 
+        ? JSON.parse(log.recommendedSkus) 
+        : (log.recommendedSkus || []);
+      if (Array.isArray(skus)) {
+        skus.forEach((sku: string) => {
+          skuCounts[sku] = (skuCounts[sku] || 0) + 1;
+        });
+      }
     });
 
     const topSkus = Object.entries(skuCounts)

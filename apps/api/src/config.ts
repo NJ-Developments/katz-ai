@@ -8,8 +8,8 @@ import { z } from 'zod';
 dotenv.config();
 
 const configSchema = z.object({
-  // Database
-  DATABASE_URL: z.string().url(),
+  // Database (SQLite uses file: protocol which isn't a valid URL)
+  DATABASE_URL: z.string().min(1),
 
   // JWT
   JWT_SECRET: z.string().min(32),
@@ -22,7 +22,7 @@ const configSchema = z.object({
   // LLM Provider (gemini is FREE!)
   LLM_PROVIDER: z.enum(['gemini', 'anthropic', 'openai']).default('gemini'),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default('gemini-1.5-flash'),
+  GEMINI_MODEL: z.string().default('gemini-2.0-flash'),
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-20250514'),
   OPENAI_API_KEY: z.string().optional(),
@@ -55,6 +55,12 @@ if (!parsed.success) {
 export const config = parsed.data;
 
 // Validate LLM provider has required API key
+if (config.LLM_PROVIDER === 'gemini' && !config.GEMINI_API_KEY) {
+  console.error('❌ GEMINI_API_KEY is required when LLM_PROVIDER is "gemini"');
+  console.error('   Get a free key at: https://aistudio.google.com/app/apikey');
+  process.exit(1);
+}
+
 if (config.LLM_PROVIDER === 'anthropic' && !config.ANTHROPIC_API_KEY) {
   console.error('❌ ANTHROPIC_API_KEY is required when LLM_PROVIDER is "anthropic"');
   process.exit(1);

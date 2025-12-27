@@ -49,8 +49,8 @@ export async function assistantRoutes(fastify: FastifyInstance) {
           data: {
             storeId,
             userId,
-            messages: [],
-            recommendedSkus: [],
+            messages: JSON.stringify([]),
+            recommendedSkus: JSON.stringify([]),
           },
         });
       }
@@ -81,7 +81,10 @@ export async function assistantRoutes(fastify: FastifyInstance) {
 
       // 4. Prepare LLM context
       const allowedSkus = inventoryResults.map((item) => item.sku);
-      const conversationHistory = (conversation.messages as any[]) || [];
+      // Parse messages from JSON string (SQLite storage)
+      const conversationHistory = typeof conversation.messages === 'string'
+        ? JSON.parse(conversation.messages)
+        : (conversation.messages as any[]) || [];
 
       const llmContext: LLMContext = {
         transcript: body.transcript,
@@ -144,9 +147,14 @@ export async function assistantRoutes(fastify: FastifyInstance) {
         { role: 'assistant', content: llmOutput.assistant_message, timestamp: new Date().toISOString() },
       ];
 
+      // Parse recommendedSkus from JSON string (SQLite storage)
+      const existingSkus = typeof conversation.recommendedSkus === 'string' 
+        ? JSON.parse(conversation.recommendedSkus) 
+        : conversation.recommendedSkus;
+
       const allRecommendedSkus = [
         ...new Set([
-          ...conversation.recommendedSkus,
+          ...existingSkus,
           ...llmOutput.recommended_skus,
           ...llmOutput.add_on_skus,
         ]),
@@ -155,8 +163,8 @@ export async function assistantRoutes(fastify: FastifyInstance) {
       await fastify.prisma.conversation.update({
         where: { id: conversation.id },
         data: {
-          messages: updatedMessages,
-          recommendedSkus: allRecommendedSkus,
+          messages: JSON.stringify(updatedMessages),
+          recommendedSkus: JSON.stringify(allRecommendedSkus),
         },
       });
 
@@ -170,10 +178,10 @@ export async function assistantRoutes(fastify: FastifyInstance) {
           userId,
           userMessage: body.transcript,
           assistantMessage: llmOutput.assistant_message,
-          recommendedSkus: llmOutput.recommended_skus,
+          recommendedSkus: JSON.stringify(llmOutput.recommended_skus),
           latencyMs: processingTimeMs,
           intent: extractIntent(body.transcript),
-          constraints: body.constraints || {},
+          constraints: JSON.stringify(body.constraints || {}),
         },
       });
 
@@ -309,7 +317,7 @@ async function searchInventory(
   // Extract key terms from query for search
   const searchTerms = extractSearchTerms(query);
 
-  // Build where clause
+  // Build where clause - for SQLite, tags is stored as a JSON string
   const where: any = {
     storeId,
     stock: { gt: 0 },
@@ -317,10 +325,10 @@ async function searchInventory(
 
   if (searchTerms.length > 0) {
     where.OR = searchTerms.flatMap((term) => [
-      { name: { contains: term, mode: 'insensitive' } },
-      { description: { contains: term, mode: 'insensitive' } },
-      { tags: { has: term.toLowerCase() } },
-      { category: { contains: term, mode: 'insensitive' } },
+      { name: { contains: term } },
+      { description: { contains: term } },
+      { tags: { contains: term.toLowerCase() } }, // SQLite: search within JSON string
+      { category: { contains: term } },
     ]);
   }
 
@@ -335,10 +343,14 @@ async function searchInventory(
     orderBy: { stock: 'desc' },
   });
 
-  // Apply attribute filters
+  // Parse tags from JSON string and apply attribute filters
   items = items.filter((item) => {
-    const attrs = item.attributes as Record<string, any>;
-    const tags = item.tags;
+    const attrs = typeof item.attributes === 'string' 
+      ? JSON.parse(item.attributes as string) 
+      : (item.attributes as Record<string, any>);
+    const tags: string[] = typeof item.tags === 'string' 
+      ? JSON.parse(item.tags as string) 
+      : (item.tags as string[]);
 
     if (constraints.noDamage || constraints.noDrilling) {
       if (tags.includes('drilling-required') || attrs.requires_drill) {
@@ -368,10 +380,12 @@ async function searchInventory(
     return true;
   });
 
-  // Convert to proper type
+  // Convert to proper type - parse JSON strings for tags/attributes
   return items.slice(0, 20).map((item) => ({
     ...item,
     price: parseFloat(item.price.toString()),
+    tags: typeof item.tags === 'string' ? JSON.parse(item.tags as string) : item.tags,
+    attributes: typeof item.attributes === 'string' ? JSON.parse(item.attributes as string) : item.attributes,
   })) as unknown as InventoryItem[];
 }
 

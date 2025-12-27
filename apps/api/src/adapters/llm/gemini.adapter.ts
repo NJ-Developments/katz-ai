@@ -13,11 +13,17 @@ export class GeminiAdapter implements LLMAdapter {
   private model: string;
 
   constructor() {
-    this.apiKey = config.GEMINI_API_KEY;
+    this.apiKey = config.GEMINI_API_KEY || '';
     this.model = config.GEMINI_MODEL || 'gemini-1.5-flash';
   }
 
   async generateResponse(context: LLMContext): Promise<LLMAssistantOutput> {
+    // Validate API key is present
+    if (!this.apiKey) {
+      console.error('GEMINI_API_KEY is not configured');
+      return this.getSafeFallback('AI not configured - missing GEMINI_API_KEY');
+    }
+
     // Build inventory context for the LLM
     const inventoryContext = this.buildInventoryContext(context);
     
@@ -66,7 +72,7 @@ export class GeminiAdapter implements LLMAdapter {
         throw new Error(`Gemini API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       
       // Extract text from Gemini response
       const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -80,7 +86,7 @@ export class GeminiAdapter implements LLMAdapter {
         throw new Error('No JSON found in response');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]) as LLMAssistantOutput;
+      const parsed = JSON.parse(jsonMatch[0]);
       return this.normalizeResponse(parsed);
     } catch (error: any) {
       console.error('Gemini API error:', error);
@@ -130,13 +136,7 @@ CUSTOMER QUESTION:
 Remember: You can ONLY recommend SKUs from this list: [${context.allowedSkus.join(', ')}]
 If no products match, set recommended_skus=[] and explain why.
 
-Respond with valid JSON only in this format:
-{
-  "response_text": "Your helpful response here",
-  "recommended_skus": ["SKU1", "SKU2"],
-  "product_reasons": { "SKU1": "reason", "SKU2": "reason" },
-  "followup_question": "optional question"
-}`;
+Respond with valid JSON matching the schema in your system instructions.`;
   }
 
   private buildPolicyContext(policy: any): string {
@@ -183,8 +183,8 @@ Respond with valid JSON only in this format:
     if (constraints.surfaceType) {
       constraintsList.push(`- Must work on: ${constraints.surfaceType}`);
     }
-    if (constraints.maxPrice) {
-      constraintsList.push(`- Budget: Under $${constraints.maxPrice}`);
+    if (constraints.maxBudget) {
+      constraintsList.push(`- Budget: Under $${constraints.maxBudget}`);
     }
 
     if (constraintsList.length === 0) {
@@ -196,22 +196,30 @@ Respond with valid JSON only in this format:
 
   private normalizeResponse(response: any): LLMAssistantOutput {
     return {
-      response_text: response.response_text || "I'm sorry, I couldn't process that request.",
+      assistant_message: response.assistant_message || "I'm sorry, I couldn't process that request.",
+      follow_up_questions: Array.isArray(response.follow_up_questions) ? response.follow_up_questions : [],
       recommended_skus: Array.isArray(response.recommended_skus) 
         ? response.recommended_skus.filter((sku: any) => typeof sku === 'string')
         : [],
-      product_reasons: response.product_reasons || {},
-      followup_question: response.followup_question || null,
+      add_on_skus: Array.isArray(response.add_on_skus) ? response.add_on_skus : [],
+      cart: Array.isArray(response.cart) ? response.cart : [],
+      safety_notes: Array.isArray(response.safety_notes) ? response.safety_notes : [],
+      reasoning: response.reasoning || {},
+      confidence: typeof response.confidence === 'number' ? response.confidence : 0.5,
     };
   }
 
   private getSafeFallback(errorMessage: string): LLMAssistantOutput {
     console.error('Using fallback response due to:', errorMessage);
     return {
-      response_text: "I apologize, but I'm having trouble processing your request right now. Could you please try again or rephrase your question?",
+      assistant_message: "I apologize, but I'm having trouble processing your request right now. Could you please try again or rephrase your question?",
+      follow_up_questions: ['What product are you looking for today?'],
       recommended_skus: [],
-      product_reasons: {},
-      followup_question: 'What product are you looking for today?',
+      add_on_skus: [],
+      cart: [],
+      safety_notes: [],
+      reasoning: {},
+      confidence: 0,
     };
   }
 }

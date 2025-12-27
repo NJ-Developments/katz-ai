@@ -129,13 +129,13 @@ export async function inventoryRoutes(fastify: FastifyInstance) {
       storeId,
     };
 
-    // Text search
+    // Text search - SQLite uses 'contains' without case-insensitive mode
     if (params.q) {
       where.OR = [
-        { name: { contains: params.q, mode: 'insensitive' } },
-        { description: { contains: params.q, mode: 'insensitive' } },
-        { tags: { has: params.q.toLowerCase() } },
-        { category: { contains: params.q, mode: 'insensitive' } },
+        { name: { contains: params.q } },
+        { description: { contains: params.q } },
+        { tags: { contains: params.q.toLowerCase() } }, // SQLite: tags stored as JSON string
+        { category: { contains: params.q } },
       ];
     }
 
@@ -269,7 +269,9 @@ export async function inventoryRoutes(fastify: FastifyInstance) {
    * List all inventory items (paginated)
    */
   fastify.get('/', { preHandler: requireAuth }, async (request) => {
-    const { page = 1, limit = 50 } = request.query as { page?: number; limit?: number };
+    const query = request.query as { page?: string; limit?: string };
+    const page = parseInt(query.page || '1', 10);
+    const limit = parseInt(query.limit || '50', 10);
     const storeId = request.user.storeId;
 
     const skip = (page - 1) * limit;

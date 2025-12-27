@@ -107,3 +107,90 @@ export async function getAnalytics(token: string) {
 export async function getConversationLogs(token: string, limit = 50) {
   return fetchAPI<any[]>(`/analytics/conversations?limit=${limit}`, { token });
 }
+
+// Assistant
+export async function askAssistant(token: string, data: {
+  transcript: string;
+  conversationId?: string;
+  constraints?: {
+    noDamage?: boolean;
+    noTools?: boolean;
+    noDrilling?: boolean;
+    maxWeight?: number;
+    minWeight?: number;
+    maxBudget?: number;
+    surfaceType?: string;
+  };
+}) {
+  return fetchAPI<{
+    conversationId: string;
+    assistantMessage: string;
+    followUpQuestions: string[];
+    recommendedItems: any[];
+    addOnItems: any[];
+    cartSuggestion: any[];
+    safetyNotes: string[];
+    confidence: number;
+    metadata: any;
+  }>('/assistant/ask', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+// Cart
+export async function getCart(token: string) {
+  return fetchAPI<{
+    id: string;
+    items: Array<{
+      sku: string;
+      name: string;
+      price: number;
+      quantity: number;
+    }>;
+    total: number;
+  }>('/carts/current', { token });
+}
+
+export async function addToCart(token: string, data: { sku: string; quantity: number }) {
+  return fetchAPI<any>('/carts/add', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+export async function removeFromCart(token: string, sku: string) {
+  return fetchAPI<any>(`/carts/remove/${sku}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export async function clearCart(token: string) {
+  return fetchAPI<any>('/carts/clear', {
+    method: 'DELETE',
+    token,
+  });
+}
+
+// Employee-specific endpoints
+export async function getRecentConversations(token: string, limit = 5) {
+  return fetchAPI<Array<{
+    id: string;
+    preview: string;
+    timestamp: string;
+    itemCount: number;
+  }>>(`/employee/recent-conversations?limit=${limit}`, { token });
+}
+
+export async function getRecentRecommendations(token: string, limit = 5) {
+  return fetchAPI<Array<{
+    sku: string;
+    name: string;
+    price: number;
+    location: string;
+    recommendedAt: string;
+  }>>(`/employee/recent-recommendations?limit=${limit}`, { token });
+}

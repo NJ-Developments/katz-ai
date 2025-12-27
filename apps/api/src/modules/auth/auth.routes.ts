@@ -4,7 +4,7 @@
 
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { requireAuth, requireManager } from '../../lib/auth';
 
 const loginSchema = z.object({

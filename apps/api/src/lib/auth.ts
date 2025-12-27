@@ -3,7 +3,8 @@
 // ===========================================
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { UserRole } from '@prisma/client';
+
+type UserRole = 'EMPLOYEE' | 'MANAGER' | 'ADMIN';
 
 export interface JWTPayload {
   userId: string;
