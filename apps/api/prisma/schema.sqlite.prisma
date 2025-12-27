@@ -1,15 +1,13 @@
 // ===========================================
-// Prisma Schema for KatzAI - PRODUCTION (PostgreSQL)
+// Prisma Schema for KatzAI (SQLite - No Setup!)
 // ===========================================
-// To use: Copy this file to schema.prisma before deploying
-// Get FREE Postgres at: https://neon.tech
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -19,7 +17,7 @@ model Store {
   name      String
   slug      String   @unique
   address   String?
-  policies  Json     @default("{}")
+  policies  String   @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -58,8 +56,8 @@ model InventoryItem {
   stock       Int      @default(0)
   aisle       String
   bin         String?
-  tags        Json     @default("[]")
-  attributes  Json     @default("{}")
+  tags        String   @default("[]")
+  attributes  String   @default("{}")
   storeId     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -75,9 +73,9 @@ model Conversation {
   id              String   @id @default(cuid())
   storeId         String
   userId          String
-  messages        Json     @default("[]")
-  recommendedSkus Json     @default("[]")
-  metadata        Json     @default("{}")
+  messages        String   @default("[]")
+  recommendedSkus String   @default("[]")
+  metadata        String   @default("{}")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -90,7 +88,7 @@ model Conversation {
 // ============ CARTS ============
 model Cart {
   id             String   @id @default(cuid())
-  items          Json     @default("[]")
+  items          String   @default("[]")
   storeId        String
   userId         String
   conversationId String?
@@ -111,9 +109,9 @@ model ConversationLog {
   userId           String
   userMessage      String
   assistantMessage String
-  recommendedSkus  Json     @default("[]")
+  recommendedSkus  String   @default("[]")
   latencyMs        Int
   intent           String?
-  constraints      Json     @default("{}")
+  constraints      String   @default("{}")
   createdAt        DateTime @default(now())
 }

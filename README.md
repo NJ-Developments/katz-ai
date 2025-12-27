@@ -102,9 +102,10 @@ New employees don't know the answers. Experienced employees are busy. Customers 
 
 ### 💰 100% FREE Stack
 - **AI**: Google Gemini (free tier - 60 req/min)
-- **Database**: SQLite (zero config, local file)
-- **Voice**: Browser Web Speech API (free, no external service)
-- **No Docker required!**
+- **Database**: PostgreSQL via Neon.tech (free tier)
+- **API Hosting**: Railway ($5 free credit)
+- **Frontend Hosting**: Vercel (free)
+- **Voice**: Browser Web Speech API (free, no external service)**
 
 ---
 
@@ -113,42 +114,27 @@ New employees don't know the answers. Experienced employees are busy. Customers 
 ```
 KatzAI/
 ├── apps/
-│   ├── api/                 # Fastify backend (port 3001)
-│   │   ├── prisma/          # Database schema + migrations + seed
+│   ├── api/                 # Fastify backend
+│   │   ├── prisma/          # Database schema + seed
 │   │   │   ├── schema.prisma
 │   │   │   ├── seed.ts      # Demo users + products
-│   │   │   ├── load-csv.ts  # CSV inventory loader
 │   │   │   └── seed-data/   # CSV files for inventory
 │   │   └── src/
 │   │       ├── adapters/    # LLM adapters (Gemini, Anthropic)
-│   │       │   └── gemini.adapter.ts
-│   │       ├── modules/     # Feature routes
-│   │       │   ├── auth/        # Login, JWT, RBAC
-│   │       │   ├── assistant/   # AI chat endpoint
-│   │       │   ├── inventory/   # Product CRUD
-│   │       │   ├── carts/       # Shopping cart
-│   │       │   └── analytics/   # Usage metrics
+│   │       ├── modules/     # Feature routes (auth, assistant, inventory)
 │   │       └── lib/         # Shared utilities
 │   │
-│   ├── admin/               # Next.js web app (port 3000)
-│   │   └── app/
-│   │       ├── (auth)/      # Login page
-│   │       ├── employee/    # Employee-only UI
-│   │       │   ├── assistant/   # Voice chat interface
-│   │       │   └── inventory/   # Product search
-│   │       └── dashboard/   # Manager/Admin dashboard
-│   │           ├── users/       # User management
-│   │           ├── inventory/   # Inventory uploads
-│   │           └── analytics/   # Usage charts
-│   │
-│   └── mobile/              # React Native (future)
+│   └── admin/               # Next.js web app
+│       └── app/
+│           ├── (auth)/      # Login page
+│           ├── employee/    # Employee UI (assistant, inventory)
+│           └── dashboard/   # Manager dashboard (users, analytics)
 │
 ├── packages/
 │   └── shared/              # Shared types & constants
 │
-├── pnpm-workspace.yaml
-├── package.json
-└── README.md                # You are here!
+├── railway.json             # Railway deployment config
+└── README.md
 ```
 
 ---
@@ -264,86 +250,61 @@ Customer asks: "I need to hang a 30lb mirror without drilling"
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started - Deploy in 15 Minutes
 
 ### Prerequisites
+- GitHub account
+- Free accounts on: [Neon.tech](https://neon.tech), [Railway](https://railway.app), [Vercel](https://vercel.com)
+- [Gemini API Key](https://aistudio.google.com/app/apikey) (FREE)
 
-- Node.js 18+ 
-- pnpm (`npm install -g pnpm`)
-- A free Google Gemini API key
+### Step 1: Database (Neon - FREE)
 
-### Step 1: Clone & Install
+1. Go to https://neon.tech → Sign up
+2. Create project "katzai"
+3. Copy your connection string: `postgresql://user:pass@host/db?sslmode=require`
 
-```bash
-git clone <your-repo-url>
-cd KatzAI
-pnpm install
+### Step 2: Deploy API (Railway)
+
+1. Push this repo to GitHub
+2. Go to https://railway.app → "New Project" → "Deploy from GitHub"
+3. Select your KatzAI repo
+4. Add environment variables:
+
 ```
-
-### Step 2: Configure Environment
-
-Create the API environment file:
-
-```bash
-# apps/api/.env
-DATABASE_URL=file:./dev.db
-JWT_SECRET=katzai-super-secret-jwt-key-32-chars-long
+DATABASE_URL=<your-neon-connection-string>
+JWT_SECRET=<generate-32-char-random-string>
 API_PORT=3001
 API_HOST=0.0.0.0
-
-# LLM Configuration (FREE!)
 LLM_PROVIDER=gemini
-GEMINI_API_KEY=your-api-key-here
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_API_KEY=<your-gemini-key>
+GEMINI_MODEL=gemini-2.0-flash
+LOG_LEVEL=info
 ```
 
-**Get your FREE Gemini API Key:**
-1. Go to https://aistudio.google.com/app/apikey
-2. Click "Create API Key"
-3. Copy and paste into `.env`
+5. Railway will deploy automatically. Get your API URL (e.g., `https://katzai-api.up.railway.app`)
 
-### Step 3: Setup Database
+### Step 3: Deploy Frontend (Vercel - FREE)
 
+1. Go to https://vercel.com → "New Project" → Import your GitHub repo
+2. Set **Root Directory** to `apps/admin`
+3. Add environment variable:
+   - `NEXT_PUBLIC_API_URL` = your Railway API URL
+4. Deploy!
+
+### Step 4: Seed Database
+
+In Railway dashboard → your service → "Shell":
 ```bash
 cd apps/api
-
-# Generate Prisma client
-npx prisma generate
-
-# Push schema to SQLite (creates dev.db file)
-npx prisma db push
-
-# Seed demo users and products
-npx prisma db seed
-
-# (Optional) Load additional CSV inventory
-npx tsx prisma/load-csv.ts
+npx tsx prisma/seed.ts
 ```
 
-### Step 4: Start Servers
+### Login Credentials
 
-**Terminal 1 - API Server:**
-```bash
-cd apps/api
-pnpm dev
-# ✓ Running at http://localhost:3001
-```
-
-**Terminal 2 - Frontend:**
-```bash
-cd apps/admin
-pnpm dev
-# ✓ Running at http://localhost:3000
-```
-
-### Step 5: Login
-
-Open http://localhost:3000
-
-| Role | Email | Password | Redirects To |
-|------|-------|----------|--------------|
-| Employee | `employee@demo-store.com` | `Demo123!` | `/employee/assistant` |
-| Manager | `manager@demo-store.com` | `Demo123!` | `/dashboard` |
+| Role | Email | Password |
+|------|-------|----------|
+| Employee | employee@demo-store.com | Demo123! |
+| Manager | manager@demo-store.com | Demo123! |
 
 ---
 
